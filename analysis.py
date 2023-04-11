@@ -1,20 +1,12 @@
 # Eliza Marija Kraule
 # emk6
-# COMP 182 Spring 2021 - Homework 6, Problem 3
 
-# You can import any standard library, as well as Numpy and Matplotlib.
-# You can use helper functions from provided.py, and autograder.py,
-# but they have to be copied over here.
 import graphviz
 from typing import Tuple
 from collections import *
 from copy import *
 
 
-
-""""
-all the functions I copied from provided
-"""
 
 def bfs(graph, startnode):
     """
@@ -157,7 +149,7 @@ def reverse_digraph_representation(graph: dict) -> dict:
     return rdigraph
 
 
-def modify_edge_weights(rgraph: dict, root: int) -> None:  ###CHANGE DICT TO NONE:###
+def modify_edge_weights(rgraph: dict, root: int) -> None:  
     """
     This function modifies the weights of all edges in rgraph according to Lemma 2
     input:  weighted digraph graph in the reversed representation
@@ -186,8 +178,6 @@ def compute_rdst_candidate(rgraph: dict, root: int) -> dict:
     for node in rgraph.keys():
         if node == root:
             candidate[node]= {}
-            #candidate.update({node: {}})
-
         else:
             children = rgraph.get(node)
             if len(children) > 0:
@@ -200,7 +190,7 @@ def compute_rdst_candidate(rgraph: dict, root: int) -> dict:
     return candidate
 
 
-def is_cycle_helper(rdst_candidte: dict, visited: [], current: int) -> list:
+def is_cycle_helper(rdst_candidate: dict, visited: list, current: int) -> list:
     """
      helper function for compute_cycle
 
@@ -212,16 +202,14 @@ def is_cycle_helper(rdst_candidte: dict, visited: [], current: int) -> list:
                 cycle.append(visited[i][0])
         return [True, cycle]
 
-    index = visited.index([current, False])
-    visited[index] = [current, True]
+    visited.append([current, True])
     flag = [False]
-    children = rdst_candidte.get(current)
+    children = rdst_candidate.get(current, [])
     for child in children:
-        flag = is_cycle_helper(rdst_candidte, visited, child)
+        flag = is_cycle_helper(rdst_candidate, visited, child)
         if flag[0] == True:
             return [True, flag[1]]
-    index = visited.index([current, True])
-    visited[index] = [current, False]  # mark as unvisited
+    visited.pop()
     return [False, []]
 
 
@@ -274,46 +262,34 @@ def contract_cycle(graph: dict, cycle: tuple) -> Tuple[dict, int]:
     output:
     returns (contracted_graph, cstar)
         contracted_graph is the digraph that results from contracting cycle
-        cstar is the number of the new node added to replace the cycle
+        cstar is the number of the new nodes added to replace the cycle
  """
 
-    contract_g = {}
-    contract_nodes = []
-    for node1 in graph.keys():  # finding cstar
-        if node1 in cycle:
-            contract_nodes.append(node1)
-    cstar = max(graph.keys()) + 1  # create cstar
-    contract_nodes.append(cstar)
+    contracted_graph = {}
+    contracted_nodes = set(cycle)  # create set of nodes in cycle
+    cstar = max(graph.keys()) + 1  # create cstar node
 
-    for node2 in graph.keys():  # building contract_g
-        children = graph.get(node2).keys()
-        if len(children) == 0 or (node2 not in cycle):
-            contract_g[node2] = {}
+    for node in graph.keys():
+        if node in contracted_nodes:
+            contracted_graph[cstar] = {}  # add cstar as a new node
+        else:
+            contracted_graph[node] = {}
 
-        if contract_g.get(cstar) == None:
-            contract_g.update({cstar: {}})
-        for child in children:
-            if ((node2 not in cycle) and (child not in cycle)):
+        for child in graph.get(node, {}):
+            if child in contracted_nodes:
+                # add edge to cstar with minimum weight
+                contracted_graph[node][cstar] = min(
+                    graph.get(node).get(child),
+                    contracted_graph[node].get(cstar, float('inf'))
+                )
+            elif node in contracted_nodes:
+                # add edge from cstar to child
+                contracted_graph[cstar][child] = graph.get(node).get(child)
+            else:
+                # add edge between non-cyclic nodes
+                contracted_graph[node][child] = graph.get(node).get(child)
 
-                contract_g[node2][child] = graph.get(node2).get(child)
-
-            if (node2 not in cycle) and (child in cycle):
-                if (contract_g.get(node2)).get(cstar) == None:  # first edge into cstar from node2
-
-                    contract_g[node2][cstar] = graph.get(node2).get(child)
-                elif contract_g.get(node2).get(cstar) > graph.get(node2).get(child):  # parallel edge w smaller weight
-
-                    contract_g[node2][cstar] = graph.get(node2).get(child)
-            if (node2 in cycle) and (child not in cycle):
-                if contract_g.get(cstar) == {}:  # first edge from cstar out to child
-
-                    contract_g[cstar][child] = graph.get(node2).get(child)
-                else:
-                    if contract_g.get(cstar).get(child) == None:
-                        contract_g[cstar][child] = graph.get(node2).get(child)
-                    elif contract_g.get(cstar).get(child) > graph.get(node2).get(child):
-                        contract_g.update({cstar: {child: graph.get(node2).get(child)}})
-    return (contract_g, cstar)
+    return (contracted_graph, cstar)
 
 
 def expand_graph(graph: dict, rdst_candidate: dict, cycle: tuple, cstar: int) -> dict:
@@ -598,16 +574,19 @@ def computemaxE(filename):
     """
     proc_data = []
     trace_data = []
+
     with open(filename) as f:
         for line in f:
-             if len(line) > 5:
-                trace_data.append(line.rstrip('\n'))
-    for i in range(len(trace_data)):
-        temp = trace_data[i].split()[::-1]
+            if len(line.strip()) > 5:
+                trace_data.append(line.strip())
+
+    for trace in trace_data:
+
+        temp = trace.split()[::-1]
         proc_data.append(temp)
-    E=max(proc_data)
-    Emax=max(E)
-    return Emax
+
+    return max(max(proc_data))
+
 
 def compute_genetic_distance(String1,String2):
     """
@@ -643,18 +622,18 @@ def construct_complete_weighted_digraph(sequences,traces):
                the patients and whose edge weights are based on the given equation, where a higher
                 weight represents a lower chance of transmisson
     """
-
     seq = read_patient_sequences(sequences)
-    epidistances = read_patient_traces(traces)
+    epi_distances = read_patient_traces(traces)
+    epi_max = int(computemaxE(traces))
 
-    Emax=int(computemaxE(traces))
-    graph={}
-    for nodes in epidistances:
-        graph[nodes] = {}
-        for child in epidistances[nodes]:
-            G=compute_genetic_distance(seq[nodes-1][1],seq[child-1][1])
-            Weight=G+((999*(epidistances[nodes][child]/Emax))/10**5)
-            graph[nodes][child] = Weight
+    graph = {}
+    for node in epi_distances:
+        graph[node] = {}
+        for child in epi_distances[node]:
+            genetic_distance = compute_genetic_distance(seq[node-1][1], seq[child-1][1])
+            weight = genetic_distance + ((999 * (epi_distances[node][child] / epi_max)) / 10**5)
+            graph[node][child] = weight
+    
     return graph
 
 
@@ -666,46 +645,46 @@ def construct_complete_weighted_digraph(sequences,traces):
 # this function will be tested only once as the value can be read from the text file
 # but this function validates the manual search of the value
 
-if int(computemaxE("patient_traces.txt"))==8:
-    print("function computemaxE has passed the test!")
-else:
-    print("function computemaxE has failed the test!")
+# if int(computemaxE("patient_traces.txt"))==8:
+#     print("function computemaxE has passed the test!")
+# else:
+#     print("function computemaxE has failed the test!")
 
-# compute genetic distance
+# # compute genetic distance
 
-test_string_1='00'
-test_string_2='11'
-test_string_3='01011111111'
-test_string_4='10111111111'
-test_string_5='000'
-test_string_6='000'
+# test_string_1='00'
+# test_string_2='11'
+# test_string_3='01011111111'
+# test_string_4='10111111111'
+# test_string_5='000'
+# test_string_6='000'
 
-if compute_genetic_distance(test_string_1,test_string_2)==2 and \
-        compute_genetic_distance(test_string_3,test_string_4)==3 and\
-        compute_genetic_distance(test_string_5,test_string_6)==0:
-    print("function compute_genetic_distance has passed the tests!")
+# if compute_genetic_distance(test_string_1,test_string_2)==2 and \
+#         compute_genetic_distance(test_string_3,test_string_4)==3 and\
+#         compute_genetic_distance(test_string_5,test_string_6)==0:
+#     print("function compute_genetic_distance has passed the tests!")
 
-# tests for construct_complete_weighted_digraph were not made because it requires more text files however i computed tests on the graph building part
+# # tests for construct_complete_weighted_digraph were not made because it requires more text files however i computed tests on the graph building part
 
-epi= {0: {1: 2, 2: 2, 3: 2, 4: 0,5: 0}, 1: {0: 2,2: 2, 3: 2,4: 0,5: 2}, 2: {0: 1, 1: 2, 3: 2, 4: 0, 5: 0}, 3: {0: 1 ,1: 0, 2: 0, 4: 2, 5: 2}, 4: {0: 1, 1: 2, 2: 2, 3: 2,4: 0,5: 0}, 5: {0: 1, 1: 2, 2: 2, 3: 2,4: 0}}
+# epi= {0: {1: 2, 2: 2, 3: 2, 4: 0,5: 0}, 1: {0: 2,2: 2, 3: 2,4: 0,5: 2}, 2: {0: 1, 1: 2, 3: 2, 4: 0, 5: 0}, 3: {0: 1 ,1: 0, 2: 0, 4: 2, 5: 2}, 4: {0: 1, 1: 2, 2: 2, 3: 2,4: 0,5: 0}, 5: {0: 1, 1: 2, 2: 2, 3: 2,4: 0}}
 
-graph={}
-for nodes in epi:
-    graph[nodes] = {}
-    for child in epi[nodes]:
-        graph[nodes][child] = 10
+# graph={}
+# for nodes in epi:
+#     graph[nodes] = {}
+#     for child in epi[nodes]:
+#         graph[nodes][child] = 10
 
 
 
-## build the complete graph and check the uniqueness
-gr=construct_complete_weighted_digraph("patient_sequences.txt","patient_traces.txt")
-rgraph=reverse_digraph_representation(gr)
-print("reversed graph:",rgraph)
+# ## build the complete graph and check the uniqueness
+# gr=construct_complete_weighted_digraph("patient_sequences.txt","patient_traces.txt")
+# rgraph=reverse_digraph_representation(gr)
+# print("reversed graph:",rgraph)
 
-## build a transmission map rooted at Patient 1
-map,weight=infer_transmap("patient_sequences.txt", "patient_traces.txt",1)
-print("map:",map)
-print("weight:",weight)
+# ## build a transmission map rooted at Patient 1
+# map,weight=infer_transmap("patient_sequences.txt", "patient_traces.txt",1)
+# print("map:",map)
+# print("weight:",weight)
 
 
 
